@@ -4,13 +4,13 @@ import { logCurrentPath } from "./utils/logCurrentPath.js";
 import { useRl } from "./utils/useRl.js";
 import { setInitialPath } from "./utils/setInitialPath.js";
 
-const start = () => {
+const start = async () => {
   logWithUsername(logGreeting);
   setInitialPath();
 
   logCurrentPath();
 
-  useRl();
+  await useRl();
 };
 
 start();

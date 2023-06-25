@@ -1,9 +1,10 @@
 import readline from "readline/promises";
 import { logCurrentPath } from "./logCurrentPath.js";
-import { stdin as input, stdout as output } from "process";
+import { cwd, stdin as input, stdout as output } from "process";
 import { logWithUsername } from "./logWithUsername.js";
 import { logGoodbye } from "./logGoodbye.js";
 import { chdir } from "process";
+import { readdir } from "fs/promises";
 
 const COMMANDS = {
   [".exit"](close) {
@@ -14,20 +15,41 @@ const COMMANDS = {
     try {
       chdir("..");
     } catch {
-      throw new Error("Something goes wrong");
+      throw new Error("Operation failed");
     }
   },
-  cd(line) {
+  cd(path) {
     try {
-      chdir(line);
+      chdir(path);
     } catch {
-      throw new Error("Directory does not exist");
+      throw new Error("Operation failed");
     }
   },
-  ls: "ls",
+  async ls() {
+    try {
+      const files = await readdir(cwd(), { withFileTypes: true });
+      const table = files
+        .map((file) => ({
+          Name: file.name,
+          Type: file.isDirectory() ? "directory" : "file",
+        }))
+        .sort((a, b) => {
+          if (a.Type === b.Type) {
+            return 0;
+          } else if (a.Type === "directory" && b.Type === "file") {
+            return -1;
+          } else if (a.Type === "file" && b.Type === "directory") {
+            return 1;
+          }
+        });
+      console.table(table);
+    } catch {
+      throw new Error("Operation failed");
+    }
+  },
 };
 
-export const useRl = () => {
+export const useRl = async () => {
   const rl = readline.createInterface({
     input,
     output,
@@ -38,7 +60,7 @@ export const useRl = () => {
     COMMANDS[".exit"](close);
   });
 
-  rl.on("line", (line) => {
+  rl.on("line", async (line) => {
     const splitedLine = line.split(/ +(?=(?:"[^"]*"|[^"])*$)/);
     const firstCommand = splitedLine[0];
     const command = COMMANDS[firstCommand];
@@ -49,24 +71,31 @@ export const useRl = () => {
         switch (firstCommand) {
           case ".exit": {
             if (splitedLine.length > 1) {
-              throw new Error("Invalid number of arguments");
+              throw new Error("Invalid input");
             }
             command(close);
             break;
           }
           case "up": {
             if (splitedLine.length > 1) {
-              throw new Error("Invalid number of arguments");
+              throw new Error("Invalid input");
             }
             command();
             break;
           }
           case "cd": {
             if (splitedLine.length > 2) {
-              throw new Error("Invalid number of arguments");
+              throw new Error("Invalid input");
             }
             const path = splitedLine[1];
             command(path);
+            break;
+          }
+          case "ls": {
+            if (splitedLine.length > 1) {
+              throw new Error("Invalid input");
+            }
+            await command();
             break;
           }
         }
@@ -78,7 +107,7 @@ export const useRl = () => {
         }
       }
     } else {
-      console.error("No such command");
+      console.error("Invalid input");
     }
 
     if (firstCommand !== ".exit") {
