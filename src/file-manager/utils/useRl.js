@@ -1,39 +1,88 @@
-import readline from "readline";
-import { exit } from "./exit.js";
+import readline from "readline/promises";
 import { logCurrentPath } from "./logCurrentPath.js";
 import { stdin as input, stdout as output } from "process";
-import { normalize } from "path";
-import { currentPath } from "../index.js";
+import { logWithUsername } from "./logWithUsername.js";
+import { logGoodbye } from "./logGoodbye.js";
+import { chdir } from "process";
 
 const COMMANDS = {
-  up() {
-    const newPath = normalize(`${currentPath.value}./..`);
-    currentPath.value = newPath;
+  [".exit"](close) {
+    logWithUsername(logGoodbye);
+    close();
   },
-  cd: "cd",
+  up() {
+    try {
+      chdir("..");
+    } catch {
+      throw new Error("Something goes wrong");
+    }
+  },
+  cd(line) {
+    try {
+      chdir(line);
+    } catch {
+      throw new Error("Directory does not exist");
+    }
+  },
   ls: "ls",
 };
 
 export const useRl = () => {
-  const rl = readline.createInterface({ input, output });
+  const rl = readline.createInterface({
+    input,
+    output,
+  });
+  const close = () => rl.close();
 
   rl.on("SIGINT", () => {
-    exit(() => rl.close());
+    COMMANDS[".exit"](close);
   });
 
   rl.on("line", (line) => {
-    const isExit = line.startsWith(".exit");
+    const splitedLine = line.split(/ +(?=(?:"[^"]*"|[^"])*$)/);
+    const firstCommand = splitedLine[0];
+    const command = COMMANDS[firstCommand];
+    console.log(splitedLine);
 
-    if (isExit) {
-      exit(() => rl.close());
+    if (command) {
+      try {
+        switch (firstCommand) {
+          case ".exit": {
+            if (splitedLine.length > 1) {
+              throw new Error("Invalid number of arguments");
+            }
+            command(close);
+            break;
+          }
+          case "up": {
+            if (splitedLine.length > 1) {
+              throw new Error("Invalid number of arguments");
+            }
+            command();
+            break;
+          }
+          case "cd": {
+            if (splitedLine.length > 2) {
+              throw new Error("Invalid number of arguments");
+            }
+            const path = splitedLine[1];
+            command(path);
+            break;
+          }
+        }
+      } catch (error) {
+        console.error(error.message);
+
+        if (firstCommand === ".exit") {
+          logCurrentPath();
+        }
+      }
+    } else {
+      console.error("No such command");
     }
 
-    const isUp = line.startsWith("up");
-
-    if (isUp) {
-      COMMANDS.up();
+    if (firstCommand !== ".exit") {
+      logCurrentPath();
     }
-
-    logCurrentPath();
   });
 };

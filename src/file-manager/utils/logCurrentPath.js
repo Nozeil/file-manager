@@ -1,16 +1,11 @@
-import { getInitialPath } from "./getInitialPath.js";
 import { stdout } from "process";
 import { EOL } from "os";
-import { currentPath } from "../index.js";
+import { cwd } from "process";
 
 export const logCurrentPath = () => {
-  const path = currentPath.value || getInitialPath();
+  const path = cwd();
 
-  if (!currentPath.value) {
-    currentPath.value = path;
-  }
-
-  const log = `You are currently in ${currentPath.value}${EOL}`;
+  const log = `You are currently in ${path}${EOL}`;
 
   stdout.write(log);
 };

@@ -2,21 +2,12 @@ import { logWithUsername } from "./utils/logWithUsername.js";
 import { logGreeting } from "./utils/logGreeting.js";
 import { logCurrentPath } from "./utils/logCurrentPath.js";
 import { useRl } from "./utils/useRl.js";
-
-export const currentPath = {
-  _value: "",
-
-  get value() {
-    return this._value;
-  },
-
-  set value(value) {
-    this._value = value;
-  },
-};
+import { setInitialPath } from "./utils/setInitialPath.js";
 
 const start = () => {
   logWithUsername(logGreeting);
+  setInitialPath();
+
   logCurrentPath();
 
   useRl();
