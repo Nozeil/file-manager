@@ -8,7 +8,7 @@ import { open, readdir, rename, unlink } from "fs/promises";
 import { createReadStream, createWriteStream } from "fs";
 import { pipeline } from "stream/promises";
 import { isAbsolute, resolve } from "path";
-import { EOL, cpus, homedir } from "os";
+import { EOL, arch, cpus, homedir, userInfo } from "os";
 import util from "util";
 
 class OperationFaildError extends Error {
@@ -29,7 +29,6 @@ const syncCommandExecutor = (command) => {
   try {
     command();
   } catch (e) {
-    console.error(e);
     throw new OperationFaildError();
   }
 };
@@ -146,6 +145,12 @@ const COMMANDS = {
     },
     "--homedir"() {
       output.write(homedir() + EOL);
+    },
+    "--username"() {
+      output.write(userInfo().username + EOL);
+    },
+    "--architecture"() {
+      output.write(arch() + EOL);
     },
   },
 };
