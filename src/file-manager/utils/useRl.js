@@ -195,9 +195,16 @@ export const useRl = async () => {
   });
 
   rl.on("line", async (line) => {
-    const splitedLine = line.split(/ +(?=(?:"[^"]*"|[^"])*$)/);
+    const splitedLine = line.split(/ +(?=(?:"[^"]*"|[^"])*$)/).map((item) => {
+      if (item.startsWith('"') && item.endsWith('"') && item.includes(" ")) {
+        return item.slice(1, -1);
+      }
+      return item;
+    });
     const enteredCommand = splitedLine[0];
     const command = COMMANDS[enteredCommand];
+
+    console.log(splitedLine);
 
     try {
       switch (enteredCommand) {
