@@ -4,7 +4,7 @@ import { cwd, stdin as input, stdout as output } from "process";
 import { logWithUsername } from "./logWithUsername.js";
 import { logGoodbye } from "./logGoodbye.js";
 import { chdir } from "process";
-import { open, readdir, rename } from "fs/promises";
+import { open, readdir, rename, rm, unlink } from "fs/promises";
 import { createReadStream, createWriteStream } from "fs";
 import { pipeline } from "stream/promises";
 import { isAbsolute, resolve } from "path";
@@ -111,6 +111,12 @@ const COMMANDS = {
 
     await pipeline(rs, ws, { end: false });
   },
+
+  async rm(enteredPath) {
+    const path = createPathFromEnteredPath(enteredPath);
+
+    await unlink(path);
+  },
 };
 
 export const useRl = async () => {
@@ -206,6 +212,15 @@ export const useRl = async () => {
           await asyncCommandExecutor(
             async () => await command(pathToFile, pathToDirectory)
           );
+          break;
+        }
+        case "rm": {
+          if (splitedLine.length > 2) {
+            throw new InvalidInputError();
+          }
+
+          const enteredPath = splitedLine[1];
+          await asyncCommandExecutor(async () => await command(enteredPath));
           break;
         }
         default: {
