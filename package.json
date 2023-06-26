@@ -1,0 +1,19 @@
+{
+  "name": "file-manager",
+  "version": "1.0.0",
+  "description": "",
+  "type": "module",
+  "scripts": {
+    "start": "node src/file-manager"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Nozeil/file-manager.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Nozeil/file-manager/issues"
+  },
+  "homepage": "https://github.com/Nozeil/file-manager#readme"
+}
