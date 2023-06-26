@@ -11,6 +11,7 @@ import { isAbsolute, resolve } from "path";
 import { EOL, arch, cpus, homedir, userInfo } from "os";
 import util from "util";
 import { createHash } from "crypto";
+import { createBrotliCompress, createBrotliDecompress } from "zlib";
 
 class OperationFaildError extends Error {
   constructor() {
@@ -29,7 +30,7 @@ class InvalidInputError extends Error {
 const syncCommandExecutor = (command) => {
   try {
     command();
-  } catch (e) {
+  } catch {
     throw new OperationFaildError();
   }
 };
@@ -44,6 +45,27 @@ const asyncCommandExecutor = async (command) => {
 
 const createPathFromEnteredPath = (enteredPath) => {
   return isAbsolute(enteredPath) ? enteredPath : resolve(cwd(), enteredPath);
+};
+
+const getPathsFromTo = (enteredPathToFile, enteredPathToDirectory) => {
+  const pathFrom = createPathFromEnteredPath(enteredPathToFile);
+  let fileName = pathFrom.split(/^.*[\\\/]/).at(-1);
+
+  const pathTo = resolve(
+    createPathFromEnteredPath(enteredPathToDirectory),
+    fileName
+  );
+
+  return { pathFrom, pathTo };
+};
+
+const changePathTo = (pathTo, isCompress) => {
+  if (isCompress) {
+    return pathTo + ".gz";
+  } else {
+    const extIndex = pathTo.lastIndexOf(".gz");
+    return pathTo.slice(0, extIndex);
+  }
 };
 
 const COMMANDS = {
@@ -100,16 +122,13 @@ const COMMANDS = {
   },
 
   async cp(enteredPathToFile, enteredPathToDirectory) {
-    const pathToFile = createPathFromEnteredPath(enteredPathToFile);
-    const fileName = pathToFile.split(/^.*[\\\/]/).at(-1);
-
-    const pathToCopy = resolve(
-      createPathFromEnteredPath(enteredPathToDirectory),
-      fileName
+    const { pathFrom, pathTo } = getPathsFromTo(
+      enteredPathToFile,
+      enteredPathToDirectory
     );
 
-    const rs = createReadStream(pathToFile);
-    const ws = createWriteStream(pathToCopy);
+    const rs = createReadStream(pathFrom);
+    const ws = createWriteStream(pathTo);
 
     await pipeline(rs, ws);
   },
@@ -161,6 +180,33 @@ const COMMANDS = {
     const hash = createHash("sha256").update(data).digest("hex");
 
     output.write(hash + EOL);
+  },
+
+  async compress(enteredPathToFile, enteredPathToDirectory) {
+    const { pathFrom, pathTo } = getPathsFromTo(
+      enteredPathToFile,
+      enteredPathToDirectory
+    );
+
+    const newPathTo = changePathTo(pathTo, true);
+
+    const rs = createReadStream(pathFrom);
+    const ws = createWriteStream(newPathTo);
+
+    await pipeline(rs, createBrotliCompress(), ws);
+  },
+
+  async decompress(enteredPathToFile, enteredPathToDirectory) {
+    const { pathFrom, pathTo } = getPathsFromTo(
+      enteredPathToFile,
+      enteredPathToDirectory
+    );
+    const newPathTo = changePathTo(pathTo, false);
+
+    const rs = createReadStream(pathFrom);
+    const ws = createWriteStream(newPathTo);
+
+    await pipeline(rs, createBrotliDecompress(), ws);
   },
 };
 
@@ -298,6 +344,32 @@ export const useRl = async () => {
 
           const enteredPath = splitedLine[1];
           await asyncCommandExecutor(async () => await command(enteredPath));
+          break;
+        }
+        case "compress": {
+          if (splitedLine.length > 3) {
+            throw new InvalidInputError();
+          }
+
+          const pathToFile = splitedLine[1];
+          const pathToDirectory = splitedLine[2];
+
+          await asyncCommandExecutor(
+            async () => await command(pathToFile, pathToDirectory)
+          );
+          break;
+        }
+        case "decompress": {
+          if (splitedLine.length > 3) {
+            throw new InvalidInputError();
+          }
+
+          const pathToFile = splitedLine[1];
+          const pathToDirectory = splitedLine[2];
+
+          await asyncCommandExecutor(
+            async () => await command(pathToFile, pathToDirectory)
+          );
           break;
         }
         default: {
