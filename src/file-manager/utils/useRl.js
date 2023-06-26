@@ -4,11 +4,45 @@ import { cwd, stdin as input, stdout as output } from "process";
 import { logWithUsername } from "./logWithUsername.js";
 import { logGoodbye } from "./logGoodbye.js";
 import { chdir } from "process";
-import { open, readdir } from "fs/promises";
+import { open, readdir, rename } from "fs/promises";
 import { createReadStream } from "fs";
 import { pipeline } from "stream/promises";
 import { isAbsolute, resolve } from "path";
 import { EOL } from "os";
+
+class OperationFaildError extends Error {
+  constructor() {
+    super();
+    this.message = "Operation failed";
+  }
+}
+
+class InvalidInputError extends Error {
+  constructor() {
+    super();
+    this.message = "Invalid input";
+  }
+}
+
+const syncCommandExecutor = (command) => {
+  try {
+    command();
+  } catch {
+    throw new OperationFaildError();
+  }
+};
+
+const asyncCommandExecutor = async (command) => {
+  try {
+    await command();
+  } catch {
+    throw new OperationFaildError();
+  }
+};
+
+const createPathFromEnteredPath = (enteredPath) => {
+  return isAbsolute(enteredPath) ? enteredPath : resolve(cwd(), enteredPath);
+};
 
 const COMMANDS = {
   [".exit"](close) {
@@ -16,61 +50,45 @@ const COMMANDS = {
     close();
   },
   up() {
-    try {
-      chdir("..");
-    } catch {
-      throw new Error("Operation failed");
-    }
+    chdir("..");
   },
   cd(path) {
-    try {
-      chdir(path);
-    } catch {
-      throw new Error("Operation failed");
-    }
+    chdir(path);
   },
   async ls() {
-    try {
-      const files = await readdir(cwd(), { withFileTypes: true });
-      const table = files
-        .map((file) => ({
-          Name: file.name,
-          Type: file.isDirectory() ? "directory" : "file",
-        }))
-        .sort((a, b) => {
-          if (a.Type === b.Type) {
-            return 0;
-          } else if (a.Type === "directory" && b.Type === "file") {
-            return -1;
-          } else if (a.Type === "file" && b.Type === "directory") {
-            return 1;
-          }
-        });
-      console.table(table);
-    } catch {
-      throw new Error("Operation failed");
-    }
+    const files = await readdir(cwd(), { withFileTypes: true });
+    const table = files
+      .map((file) => ({
+        Name: file.name,
+        Type: file.isDirectory() ? "directory" : "file",
+      }))
+      .sort((a, b) => {
+        if (a.Type === b.Type) {
+          return 0;
+        } else if (a.Type === "directory" && b.Type === "file") {
+          return -1;
+        } else if (a.Type === "file" && b.Type === "directory") {
+          return 1;
+        }
+      });
+    console.table(table);
   },
   async cat(enteredPath) {
-    try {
-      let path = isAbsolute(enteredPath)
-        ? enteredPath
-        : resolve(cwd(), enteredPath);
-      const rs = createReadStream(path);
+    let path = createPathFromEnteredPath(enteredPath);
+    const rs = createReadStream(path);
 
-      await pipeline(rs, output, { end: false });
-      output.write(`${EOL}`);
-    } catch (e) {
-      throw new Error("Operation failed");
-    }
+    await pipeline(rs, output, { end: false });
+    output.write(`${EOL}`);
   },
   async add(fileName) {
-    try {
-      const path = resolve(cwd(), fileName);
-      await open(path, "ax");
-    } catch {
-      throw new Error("Operation failed");
-    }
+    const path = resolve(cwd(), fileName);
+    await open(path, "ax");
+  },
+  async rn(enteredOldPath, enteredNewPath) {
+    const oldPath = createPathFromEnteredPath(enteredOldPath);
+    const newPath = createPathFromEnteredPath(enteredNewPath);
+
+    await rename(oldPath, newPath);
   },
 };
 
@@ -87,70 +105,87 @@ export const useRl = async () => {
 
   rl.on("line", async (line) => {
     const splitedLine = line.split(/ +(?=(?:"[^"]*"|[^"])*$)/);
-    const firstCommand = splitedLine[0];
-    const command = COMMANDS[firstCommand];
+    const enteredCommand = splitedLine[0];
+    const command = COMMANDS[enteredCommand];
 
-    if (command) {
-      try {
-        switch (firstCommand) {
-          case ".exit": {
-            if (splitedLine.length > 1) {
-              throw new Error("Invalid input");
-            }
-            command(close);
-            break;
+    try {
+      switch (enteredCommand) {
+        case ".exit": {
+          if (splitedLine.length > 1) {
+            throw new InvalidInputError();
           }
-          case "up": {
-            if (splitedLine.length > 1) {
-              throw new Error("Invalid input");
-            }
-            command();
-            break;
-          }
-          case "cd": {
-            if (splitedLine.length > 2) {
-              throw new Error("Invalid input");
-            }
-            const path = splitedLine[1];
-            command(path);
-            break;
-          }
-          case "ls": {
-            if (splitedLine.length > 1) {
-              throw new Error("Invalid input");
-            }
-            await command();
-            break;
-          }
-          case "cat": {
-            if (splitedLine.length > 2) {
-              throw new Error("Invalid input");
-            }
-            const path = splitedLine[1];
-            await command(path);
-            break;
-          }
-          case "add": {
-            if (splitedLine.length > 2) {
-              throw new Error("Invalid input");
-            }
-            const fileName = splitedLine[1];
-            await command(fileName);
-            break;
-          }
+          
+          syncCommandExecutor(() => command(close));
+          break;
         }
-      } catch (error) {
-        console.error(error.message);
+        case "up": {
+          if (splitedLine.length > 1) {
+            throw new InvalidInputError();
+          }
 
-        if (firstCommand === ".exit") {
-          logCurrentPath();
+          syncCommandExecutor(() => command());
+          break;
+        }
+        case "cd": {
+          if (splitedLine.length > 2) {
+            throw new InvalidInputError();
+          }
+  
+          const path = splitedLine[1];
+          syncCommandExecutor(() => command(path));
+          break;
+        }
+        case "ls": {
+          if (splitedLine.length > 1) {
+            throw new InvalidInputError();
+          }
+
+          await asyncCommandExecutor(async () => await command());
+          break;
+        }
+        case "cat": {
+          if (splitedLine.length > 2) {
+            throw new InvalidInputError();
+          }
+
+          const path = splitedLine[1];
+          await asyncCommandExecutor(async () => await command(path));
+          break;
+        }
+        case "add": {
+          if (splitedLine.length > 2) {
+            throw new InvalidInputError();
+          }
+
+          const fileName = splitedLine[1];
+          await asyncCommandExecutor(async () => await command(fileName));
+          break;
+        }
+        case "rn": {
+          if (splitedLine.length > 3) {
+            throw new InvalidInputError();
+          }
+          const oldPath = splitedLine[1];
+          const newPath = splitedLine[2];
+
+          await asyncCommandExecutor(
+            async () => await command(oldPath, newPath)
+          );
+          break;
+        }
+        default: {
+          throw new InvalidInputError();
         }
       }
-    } else {
-      console.error("Invalid input");
+    } catch (error) {
+      console.error(error.message);
+
+      if (enteredCommand === ".exit") {
+        logCurrentPath();
+      }
     }
 
-    if (firstCommand !== ".exit") {
+    if (enteredCommand !== ".exit") {
       logCurrentPath();
     }
   });

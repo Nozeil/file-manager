@@ -13,4 +13,4 @@ const start = async () => {
   await useRl();
 };
 
-start();
+await start();
