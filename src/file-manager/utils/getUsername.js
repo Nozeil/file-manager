@@ -1,9 +1,19 @@
 import { argv } from "process";
+import { InvalidInputError } from "../errors/invalidInput.js";
 
 export const getUsername = () => {
-  const arg = argv.slice(2).find((arg) => arg.startsWith("--username"));
-  const equalsIndex = arg.indexOf("=") + 1;
-  const username = arg.slice(equalsIndex);
+  if (argv.length !== 3) {
+    throw new InvalidInputError();
+  }
 
-  return username;
+  const arg = argv.at(-1);
+  const isValidArg = arg.startsWith("--username=");
+
+  if (isValidArg) {
+    const equalsIndex = arg.indexOf("=") + 1;
+    const username = arg.slice(equalsIndex) || "Anonymous";
+    return username;
+  } else {
+    throw new InvalidInputError();
+  }
 };

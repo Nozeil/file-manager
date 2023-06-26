@@ -5,12 +5,16 @@ import { useRl } from "./utils/useRl.js";
 import { setInitialPath } from "./utils/setInitialPath.js";
 
 const start = async () => {
-  logWithUsername(logGreeting);
-  setInitialPath();
+  try {
+    logWithUsername(logGreeting);
+    setInitialPath();
 
-  logCurrentPath();
+    logCurrentPath();
 
-  await useRl();
+    await useRl();
+  } catch (e) {
+    console.error(e.message);
+  }
 };
 
 await start();

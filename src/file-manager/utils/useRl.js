@@ -12,26 +12,14 @@ import { EOL, arch, cpus, homedir, userInfo } from "os";
 import util from "util";
 import { createHash } from "crypto";
 import { createBrotliCompress, createBrotliDecompress } from "zlib";
-
-class OperationFaildError extends Error {
-  constructor() {
-    super();
-    this.message = "Operation failed";
-  }
-}
-
-class InvalidInputError extends Error {
-  constructor() {
-    super();
-    this.message = "Invalid input";
-  }
-}
+import { InvalidInputError } from "../errors/invalidInput.js";
+import { OperationFailedError } from "../errors/operationFailed.js";
 
 const syncCommandExecutor = (command) => {
   try {
     command();
   } catch {
-    throw new OperationFaildError();
+    throw new OperationFailedError();
   }
 };
 
@@ -39,7 +27,7 @@ const asyncCommandExecutor = async (command) => {
   try {
     await command();
   } catch {
-    throw new OperationFaildError();
+    throw new OperationFailedError();
   }
 };
 
@@ -223,6 +211,7 @@ export const useRl = async () => {
 
   rl.on("line", async (line) => {
     const splitedLine = line.split(/ +(?=(?:"[^"]*"|[^"])*$)/);
+    console.log(splitedLine);
     const enteredCommand = splitedLine[0];
     const command = COMMANDS[enteredCommand];
 
