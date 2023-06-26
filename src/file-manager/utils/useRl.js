@@ -204,8 +204,6 @@ export const useRl = async () => {
     const enteredCommand = splitedLine[0];
     const command = COMMANDS[enteredCommand];
 
-    console.log(splitedLine);
-
     try {
       switch (enteredCommand) {
         case ".exit": {
