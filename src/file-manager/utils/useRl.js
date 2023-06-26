@@ -13,29 +13,14 @@ import util from "util";
 import { createHash } from "crypto";
 import { createBrotliCompress, createBrotliDecompress } from "zlib";
 import { InvalidInputError } from "../errors/invalidInput.js";
-import { OperationFailedError } from "../errors/operationFailed.js";
-
-const syncCommandExecutor = (command) => {
-  try {
-    command();
-  } catch {
-    throw new OperationFailedError();
-  }
-};
-
-const asyncCommandExecutor = async (command) => {
-  try {
-    await command();
-  } catch {
-    throw new OperationFailedError();
-  }
-};
+import { syncCommandExecutor } from "./syncCommandExecutor.js";
+import { asyncCommandExecutor } from "./asyncCommandExecutor.js";
 
 const createPathFromEnteredPath = (enteredPath) => {
   return isAbsolute(enteredPath) ? enteredPath : resolve(cwd(), enteredPath);
 };
 
-const getPathsFromTo = (enteredPathToFile, enteredPathToDirectory) => {
+const getPaths = (enteredPathToFile, enteredPathToDirectory) => {
   const pathFrom = createPathFromEnteredPath(enteredPathToFile);
   let fileName = pathFrom.split(/^.*[\\\/]/).at(-1);
 
@@ -110,7 +95,7 @@ const COMMANDS = {
   },
 
   async cp(enteredPathToFile, enteredPathToDirectory) {
-    const { pathFrom, pathTo } = getPathsFromTo(
+    const { pathFrom, pathTo } = getPaths(
       enteredPathToFile,
       enteredPathToDirectory
     );
@@ -171,7 +156,7 @@ const COMMANDS = {
   },
 
   async compress(enteredPathToFile, enteredPathToDirectory) {
-    const { pathFrom, pathTo } = getPathsFromTo(
+    const { pathFrom, pathTo } = getPaths(
       enteredPathToFile,
       enteredPathToDirectory
     );
@@ -185,7 +170,7 @@ const COMMANDS = {
   },
 
   async decompress(enteredPathToFile, enteredPathToDirectory) {
-    const { pathFrom, pathTo } = getPathsFromTo(
+    const { pathFrom, pathTo } = getPaths(
       enteredPathToFile,
       enteredPathToDirectory
     );
@@ -211,7 +196,6 @@ export const useRl = async () => {
 
   rl.on("line", async (line) => {
     const splitedLine = line.split(/ +(?=(?:"[^"]*"|[^"])*$)/);
-    console.log(splitedLine);
     const enteredCommand = splitedLine[0];
     const command = COMMANDS[enteredCommand];
 
