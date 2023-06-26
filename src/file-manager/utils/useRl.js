@@ -8,7 +8,7 @@ import { open, readdir, rename, unlink } from "fs/promises";
 import { createReadStream, createWriteStream } from "fs";
 import { pipeline } from "stream/promises";
 import { isAbsolute, resolve } from "path";
-import { EOL, cpus } from "os";
+import { EOL, cpus, homedir } from "os";
 import util from "util";
 
 class OperationFaildError extends Error {
@@ -143,6 +143,9 @@ const COMMANDS = {
         filteredCpus
       )}${EOL}`;
       output.write(result);
+    },
+    "--homedir"() {
+      output.write(homedir() + EOL);
     },
   },
 };
