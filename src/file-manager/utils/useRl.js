@@ -4,12 +4,13 @@ import { cwd, stdin as input, stdout as output } from "process";
 import { logWithUsername } from "./logWithUsername.js";
 import { logGoodbye } from "./logGoodbye.js";
 import { chdir } from "process";
-import { open, readdir, rename, unlink } from "fs/promises";
+import { open, readFile, readdir, rename, unlink } from "fs/promises";
 import { createReadStream, createWriteStream } from "fs";
 import { pipeline } from "stream/promises";
 import { isAbsolute, resolve } from "path";
 import { EOL, arch, cpus, homedir, userInfo } from "os";
 import util from "util";
+import { createHash } from "crypto";
 
 class OperationFaildError extends Error {
   constructor() {
@@ -153,6 +154,14 @@ const COMMANDS = {
       output.write(arch() + EOL);
     },
   },
+
+  async hash(enteredPath) {
+    const path = createPathFromEnteredPath(enteredPath);
+    const data = await readFile(path);
+    const hash = createHash("sha256").update(data).digest("hex");
+
+    output.write(hash + EOL);
+  },
 };
 
 export const useRl = async () => {
@@ -277,8 +286,18 @@ export const useRl = async () => {
           if (splitedLine.length > 2) {
             throw new InvalidInputError();
           }
+
           const arg = splitedLine[1];
           syncCommandExecutor(() => command[arg]());
+          break;
+        }
+        case "hash": {
+          if (splitedLine.length > 2) {
+            throw new InvalidInputError();
+          }
+
+          const enteredPath = splitedLine[1];
+          await asyncCommandExecutor(async () => await command(enteredPath));
           break;
         }
         default: {
