@@ -8,7 +8,8 @@ import { open, readdir, rename, unlink } from "fs/promises";
 import { createReadStream, createWriteStream } from "fs";
 import { pipeline } from "stream/promises";
 import { isAbsolute, resolve } from "path";
-import { EOL } from "os";
+import { EOL, cpus } from "os";
+import util from "util";
 
 class OperationFaildError extends Error {
   constructor() {
@@ -27,7 +28,8 @@ class InvalidInputError extends Error {
 const syncCommandExecutor = (command) => {
   try {
     command();
-  } catch {
+  } catch (e) {
+    console.error(e);
     throw new OperationFaildError();
   }
 };
@@ -126,6 +128,21 @@ const COMMANDS = {
   os: {
     "--EOL"() {
       output.write(`EOL:${EOL}`);
+    },
+    "--cpus"() {
+      const filteredCpus = cpus().reduce((acc, curr) => {
+        const result = {
+          model: curr.model.trim(),
+          speed: `${curr.speed / 1000} GHz`,
+        };
+        acc.push(result);
+        return acc;
+      }, []);
+      const coresAmount = filteredCpus.length;
+      const result = `CPUs amount: ${coresAmount}${EOL}CPUs info: ${util.inspect(
+        filteredCpus
+      )}${EOL}`;
+      output.write(result);
     },
   },
 };
@@ -249,7 +266,6 @@ export const useRl = async () => {
           break;
         }
         case "os": {
-          console.log(splitedLine);
           if (splitedLine.length > 2) {
             throw new InvalidInputError();
           }
