@@ -5,6 +5,10 @@ import { logWithUsername } from "./logWithUsername.js";
 import { logGoodbye } from "./logGoodbye.js";
 import { chdir } from "process";
 import { readdir } from "fs/promises";
+import { createReadStream } from "fs";
+import { pipeline } from "stream/promises";
+import { isAbsolute, resolve } from "path";
+import { EOL } from "os";
 
 const COMMANDS = {
   [".exit"](close) {
@@ -47,6 +51,19 @@ const COMMANDS = {
       throw new Error("Operation failed");
     }
   },
+  async cat(enteredPath) {
+    try {
+      let path = isAbsolute(enteredPath)
+        ? enteredPath
+        : resolve(cwd(), enteredPath);
+      const rs = createReadStream(path);
+
+      await pipeline(rs, output, { end: false });
+      output.write(`${EOL}`);
+    } catch (e) {
+      throw new Error("Operation failed");
+    }
+  },
 };
 
 export const useRl = async () => {
@@ -64,7 +81,6 @@ export const useRl = async () => {
     const splitedLine = line.split(/ +(?=(?:"[^"]*"|[^"])*$)/);
     const firstCommand = splitedLine[0];
     const command = COMMANDS[firstCommand];
-    console.log(splitedLine);
 
     if (command) {
       try {
@@ -96,6 +112,14 @@ export const useRl = async () => {
               throw new Error("Invalid input");
             }
             await command();
+            break;
+          }
+          case "cat": {
+            if (splitedLine.length > 2) {
+              throw new Error("Invalid input");
+            }
+            const path = splitedLine[1];
+            await command(path);
             break;
           }
         }
