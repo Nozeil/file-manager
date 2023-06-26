@@ -109,7 +109,7 @@ const COMMANDS = {
     const rs = createReadStream(pathToFile);
     const ws = createWriteStream(pathToCopy);
 
-    await pipeline(rs, ws, { end: false });
+    await pipeline(rs, ws);
   },
 
   async rm(enteredPath) {
@@ -121,6 +121,12 @@ const COMMANDS = {
   async mv(enteredPathToFile, enteredPathToDirectory) {
     await this.cp(enteredPathToFile, enteredPathToDirectory);
     await this.rm(enteredPathToFile);
+  },
+
+  os: {
+    "--EOL"() {
+      output.write(`EOL:${EOL}`);
+    },
   },
 };
 
@@ -237,8 +243,18 @@ export const useRl = async () => {
           const pathToDirectory = splitedLine[2];
 
           await asyncCommandExecutor(
-            async () => await COMMANDS[enteredCommand](pathToFile, pathToDirectory)
+            async () =>
+              await COMMANDS[enteredCommand](pathToFile, pathToDirectory)
           );
+          break;
+        }
+        case "os": {
+          console.log(splitedLine);
+          if (splitedLine.length > 2) {
+            throw new InvalidInputError();
+          }
+          const arg = splitedLine[1];
+          syncCommandExecutor(() => command[arg]());
           break;
         }
         default: {
