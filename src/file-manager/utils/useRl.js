@@ -5,7 +5,7 @@ import { logWithUsername } from "./logWithUsername.js";
 import { logGoodbye } from "./logGoodbye.js";
 import { chdir } from "process";
 import { open, readdir, rename } from "fs/promises";
-import { createReadStream } from "fs";
+import { createReadStream, createWriteStream } from "fs";
 import { pipeline } from "stream/promises";
 import { isAbsolute, resolve } from "path";
 import { EOL } from "os";
@@ -49,12 +49,15 @@ const COMMANDS = {
     logWithUsername(logGoodbye);
     close();
   },
+
   up() {
     chdir("..");
   },
+
   cd(path) {
     chdir(path);
   },
+
   async ls() {
     const files = await readdir(cwd(), { withFileTypes: true });
     const table = files
@@ -73,6 +76,7 @@ const COMMANDS = {
       });
     console.table(table);
   },
+
   async cat(enteredPath) {
     let path = createPathFromEnteredPath(enteredPath);
     const rs = createReadStream(path);
@@ -80,15 +84,32 @@ const COMMANDS = {
     await pipeline(rs, output, { end: false });
     output.write(`${EOL}`);
   },
+
   async add(fileName) {
     const path = resolve(cwd(), fileName);
     await open(path, "ax");
   },
+
   async rn(enteredOldPath, enteredNewPath) {
     const oldPath = createPathFromEnteredPath(enteredOldPath);
     const newPath = createPathFromEnteredPath(enteredNewPath);
 
     await rename(oldPath, newPath);
+  },
+
+  async cp(enteredPathToFile, enteredPathToDirectory) {
+    const pathToFile = createPathFromEnteredPath(enteredPathToFile);
+    const fileName = pathToFile.split(/^.*[\\\/]/).at(-1);
+
+    const pathToCopy = resolve(
+      createPathFromEnteredPath(enteredPathToDirectory),
+      fileName
+    );
+
+    const rs = createReadStream(pathToFile);
+    const ws = createWriteStream(pathToCopy);
+
+    await pipeline(rs, ws, { end: false });
   },
 };
 
@@ -114,7 +135,7 @@ export const useRl = async () => {
           if (splitedLine.length > 1) {
             throw new InvalidInputError();
           }
-          
+
           syncCommandExecutor(() => command(close));
           break;
         }
@@ -130,7 +151,7 @@ export const useRl = async () => {
           if (splitedLine.length > 2) {
             throw new InvalidInputError();
           }
-  
+
           const path = splitedLine[1];
           syncCommandExecutor(() => command(path));
           break;
@@ -165,11 +186,25 @@ export const useRl = async () => {
           if (splitedLine.length > 3) {
             throw new InvalidInputError();
           }
+
           const oldPath = splitedLine[1];
           const newPath = splitedLine[2];
 
           await asyncCommandExecutor(
             async () => await command(oldPath, newPath)
+          );
+          break;
+        }
+        case "cp": {
+          if (splitedLine.length > 3) {
+            throw new InvalidInputError();
+          }
+
+          const pathToFile = splitedLine[1];
+          const pathToDirectory = splitedLine[2];
+
+          await asyncCommandExecutor(
+            async () => await command(pathToFile, pathToDirectory)
           );
           break;
         }
