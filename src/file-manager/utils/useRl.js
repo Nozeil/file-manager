@@ -4,7 +4,7 @@ import { cwd, stdin as input, stdout as output } from "process";
 import { logWithUsername } from "./logWithUsername.js";
 import { logGoodbye } from "./logGoodbye.js";
 import { chdir } from "process";
-import { readdir } from "fs/promises";
+import { open, readdir } from "fs/promises";
 import { createReadStream } from "fs";
 import { pipeline } from "stream/promises";
 import { isAbsolute, resolve } from "path";
@@ -64,6 +64,14 @@ const COMMANDS = {
       throw new Error("Operation failed");
     }
   },
+  async add(fileName) {
+    try {
+      const path = resolve(cwd(), fileName);
+      await open(path, "ax");
+    } catch {
+      throw new Error("Operation failed");
+    }
+  },
 };
 
 export const useRl = async () => {
@@ -120,6 +128,14 @@ export const useRl = async () => {
             }
             const path = splitedLine[1];
             await command(path);
+            break;
+          }
+          case "add": {
+            if (splitedLine.length > 2) {
+              throw new Error("Invalid input");
+            }
+            const fileName = splitedLine[1];
+            await command(fileName);
             break;
           }
         }
